@@ -717,29 +717,28 @@ class Interpreter(object):
     """Creates a js interpreter"""
     def __init__(self):
         allon = DE | DD | RO
-        w_Global = W_Object(Class="global")
+        global_instance = W_Object(Class="global")
 
-        ctx = global_context(w_Global)
+        ctx = global_context(global_instance)
 
         w_ObjPrototype = W_Object(Prototype=None, Class='Object')
 
-        w_Function = W_Function(ctx, Class='Function',
-                              Prototype=w_ObjPrototype)
-        w_FncPrototype = W_Function(ctx, Class='Function', Prototype=w_ObjPrototype)#W_Object(Prototype=None, Class='Function')
+        w_Function = W_Function(ctx, Class='Function', Prototype=w_ObjPrototype)
+        w_FncPrototype = W_Function(ctx, Class='Function', Prototype=w_ObjPrototype)
 
+        w_Function.Put(ctx, 'prototype', w_FncPrototype, flags = allon)
         w_Function.Put(ctx, 'length', W_IntNumber(1), flags = allon)
-        w_Global.Put(ctx, 'Function', w_Function)
+        w_Function.Put(ctx, 'constructor', w_Function, flags=allon)
+
+        global_instance.Put(ctx, 'Function', w_Function)
+        global_instance.Prototype = w_ObjPrototype
 
         w_Object = W_ObjectObject('Object', w_FncPrototype)
         w_Object.Put(ctx, 'prototype', w_ObjPrototype, flags = allon)
         w_Object.Put(ctx, 'length', W_IntNumber(1), flags = allon)
-        w_Global.Prototype = w_ObjPrototype
-
         w_Object.Put(ctx, 'prototype', w_ObjPrototype, flags = allon)
-        w_Global.Put(ctx, 'Object', w_Object)
 
-        w_Function.Put(ctx, 'prototype', w_FncPrototype, flags = allon)
-        w_Function.Put(ctx, 'constructor', w_Function, flags=allon)
+        global_instance.Put(ctx, 'Object', w_Object)
 
         toString = W_ToString(ctx)
 
@@ -780,7 +779,7 @@ class Interpreter(object):
         })
 
         w_Boolean.Put(ctx, 'prototype', w_BoolPrototype, flags = allon)
-        w_Global.Put(ctx, 'Boolean', w_Boolean)
+        global_instance.Put(ctx, 'Boolean', w_Boolean)
 
         #Number
         w_Number = W_NumberObject('Number', w_FncPrototype)
@@ -811,7 +810,7 @@ class Interpreter(object):
         w_Number.Put(ctx, 'NEGATIVE_INFINITY', W_FloatNumber(-INFINITY), flags = RO|DD)
 
 
-        w_Global.Put(ctx, 'Number', w_Number)
+        global_instance.Put(ctx, 'Number', w_Number)
 
 
         #String
@@ -839,7 +838,7 @@ class Interpreter(object):
 
         w_String.Put(ctx, 'prototype', w_StrPrototype, flags=allon)
         w_String.Put(ctx, 'fromCharCode', W_FromCharCode(ctx))
-        w_Global.Put(ctx, 'String', w_String)
+        global_instance.Put(ctx, 'String', w_String)
 
         w_Array = W_ArrayObject('Array', w_FncPrototype)
 
@@ -859,12 +858,12 @@ class Interpreter(object):
         w_Array.Put(ctx, 'prototype', w_ArrPrototype, flags = allon)
         w_Array.Put(ctx, '__proto__', w_FncPrototype, flags = allon)
         w_Array.Put(ctx, 'length', W_IntNumber(1), flags = allon)
-        w_Global.Put(ctx, 'Array', w_Array)
+        global_instance.Put(ctx, 'Array', w_Array)
 
 
         #Math
         w_math = W_Object(Class='Math')
-        w_Global.Put(ctx, 'Math', w_math)
+        global_instance.Put(ctx, 'Math', w_math)
         w_math.Put(ctx, '__proto__',  w_ObjPrototype)
         w_math.Put(ctx, 'prototype', w_ObjPrototype, flags = allon)
         w_math.Put(ctx, 'abs', W_Builtin(absjs, Class='function'))
@@ -885,7 +884,7 @@ class Interpreter(object):
         w_math.Put(ctx, 'random', W_Builtin(randomjs, Class='function'))
         w_math.Put(ctx, 'min', W_Builtin(minjs, Class='function'))
         w_math.Put(ctx, 'max', W_Builtin(maxjs, Class='function'))
-        w_Global.Put(ctx, 'version', W_Builtin(versionjs), flags=allon)
+        global_instance.Put(ctx, 'version', W_Builtin(versionjs), flags=allon)
 
         #Date
         w_Date = W_DateObject('Date', w_FncPrototype)
@@ -900,31 +899,32 @@ class Interpreter(object):
         })
 
         w_Date.Put(ctx, 'prototype', w_DatePrototype, flags=allon)
+        global_instance.Put(ctx, 'Date', w_Date)
 
-        w_Global.Put(ctx, 'Date', w_Date)
+        global_instance.Put(ctx, 'NaN', W_FloatNumber(NAN), flags = DE|DD)
+        global_instance.Put(ctx, 'Infinity', W_FloatNumber(INFINITY), flags = DE|DD)
+        global_instance.Put(ctx, 'undefined', w_Undefined, flags = DE|DD)
 
-        w_Global.Put(ctx, 'NaN', W_FloatNumber(NAN), flags = DE|DD)
-        w_Global.Put(ctx, 'Infinity', W_FloatNumber(INFINITY), flags = DE|DD)
-        w_Global.Put(ctx, 'undefined', w_Undefined, flags = DE|DD)
-        w_Global.Put(ctx, 'eval', W_Eval(ctx))
-        w_Global.Put(ctx, 'parseInt', W_ParseInt(ctx))
-        w_Global.Put(ctx, 'parseFloat', W_ParseFloat(ctx))
-        w_Global.Put(ctx, 'isNaN', W_Builtin(isnanjs))
-        w_Global.Put(ctx, 'isFinite', W_Builtin(isfinitejs))
-        w_Global.Put(ctx, 'print', W_Builtin(printjs))
-        w_Global.Put(ctx, 'alert', W_Builtin(noop))
-        w_Global.Put(ctx, 'unescape', W_Builtin(unescapejs))
-
-        w_Global.Put(ctx, 'this', w_Global)
+        put_values(ctx, global_instance, {
+            'this': global_instance,
+            'eval': W_Eval(ctx),
+            'parseInt': W_ParseInt(ctx),
+            'parseFloat': W_ParseFloat(ctx),
+            'isNaN': W_Builtin(isnanjs),
+            'isFinite': W_Builtin(isfinitejs),
+            'print': W_Builtin(printjs),
+            'alert': W_Builtin(noop),
+            'unescape': W_Builtin(unescapejs),
+            'load': W_Builtin(make_loadjs(self))
+        })
 
         # debugging
         if not we_are_translated():
-            w_Global.Put(ctx, 'pypy_repr', W_Builtin(pypy_repr))
+            global_instance.Put(ctx, 'pypy_repr', W_Builtin(pypy_repr))
 
-        w_Global.Put(ctx, 'load', W_Builtin(make_loadjs(self)))
 
         self.global_context = ctx
-        self.w_Global = w_Global
+        self.w_Global = global_instance
         self.w_Object = w_Object
 
     def run(self, script, interactive=False):
