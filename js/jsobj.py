@@ -250,9 +250,6 @@ class W_Primitive(W_Root):
     def ToPrimitive(self, ctx, hint=""):
         return self
 
-def str_builtin(ctx, args, this):
-    return W_String(this.ToString(ctx))
-
 class W_Object(W_PrimitiveObject):
     def __init__(self, ctx=None, Prototype=None, Class='Object',
                  Value=w_Undefined, callfunc=None):
