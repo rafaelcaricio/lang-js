@@ -5,24 +5,16 @@ from pypy.rlib.rfloat import isnan, isinf, NAN, formatd
 from js.execution import ThrowException, JsTypeError,\
      RangeError, ReturnException
 import string
-DE = 1
-DD = 2
-RO = 4
+
+DE = 1 # dont enumerable
+DD = 2 # dont delete
+RO = 4 # read-only
 IT = 8
 
 from pypy.rlib import jit
 
 class SeePage(NotImplementedError):
     pass
-
-class Property(object):
-    def __init__(self, name, value, flags = 0):
-        self.name = name
-        self.value = value
-        self.flags = flags
-
-    def __repr__(self):
-        return "|%s : %s %d|"%(self.name, self.value, self.flags)
 
 def internal_property(name, value):
     """return a internal property with the right attributes"""
@@ -116,6 +108,28 @@ class W_Null(W_Root):
 w_Undefined = W_Undefined()
 w_Null = W_Null()
 
+class Property(object):
+    def __init__(self, name, value, flags = 0, get_value_func=w_Undefined, set_value_func=w_Undefined):
+        self.name = name
+        self.value = value
+        self.flags = flags
+        self.get_value_func = get_value_func
+        self.set_value_func = set_value_func
+
+    def __repr__(self):
+        return "|%s : %s %d|"%(self.name, self.value, self.flags)
+
+    def get_value(self, ctx):
+        if self.get_value_func == w_Undefined:
+            return self.value
+        else:
+            return self.get_value_func.Call(ctx)
+
+    def set_value(self, ctx, new_value):
+        if self.set_value_func == w_Undefined:
+            self.value = new_value
+        else:
+            self.set_value_func.Call(ctx, args=[new_value])
 
 class W_PrimitiveObject(W_Root):
     def __init__(self, ctx=None, Prototype=None, Class='Object',
@@ -166,27 +180,31 @@ class W_PrimitiveObject(W_Root):
         except ReturnException, e:
             return e.value
 
-    def Get(self, ctx, P):
+    def Get(self, ctx, propertyName):
         try:
-            return self.propdict[P].value
+            return self.propdict[propertyName].get_value(ctx)
         except KeyError:
             if self.Prototype is None:
                 return w_Undefined
-        return self.Prototype.Get(ctx, P) # go down the prototype chain
+        return self.Prototype.Get(ctx, propertyName) # go down the prototype chain
 
-    def CanPut(self, P):
-        if P in self.propdict:
-            if self.propdict[P].flags & RO: return False
-            return True
-        if self.Prototype is None: return True
-        return self.Prototype.CanPut(P)
+    def CanPut(self, propertyName):
+        try:
+            if self.propdict[propertyName].flags & RO:
+                return False
+            else:
+                return True
+        except KeyError:
+            if self.Prototype is None:
+                return True
+            else:
+                return self.Prototype.CanPut(propertyName)
 
     def Put(self, ctx, P, V, flags = 0):
-
         if not self.CanPut(P): return
         if P in self.propdict:
             prop = self.propdict[P]
-            prop.value = V
+            prop.set_value(ctx, V)
             prop.flags |= flags
         else:
             self.propdict[P] = Property(P, V, flags = flags)
