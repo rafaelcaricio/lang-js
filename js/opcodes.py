@@ -9,9 +9,6 @@ from js.baseop import plus, sub, compare, AbstractEC, StrictEC,\
 from pypy.rlib.rarithmetic import intmask
 
 class Opcode(object):
-    def __init__(self):
-        pass
-
     def eval(self, ctx, stack):
         """ Execute in context ctx
         """

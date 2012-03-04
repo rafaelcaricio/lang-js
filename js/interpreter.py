@@ -736,7 +736,6 @@ class Interpreter(object):
         w_Object = W_ObjectObject('Object', w_FncPrototype)
         w_Object.Put(ctx, 'prototype', w_ObjPrototype, flags = allon)
         w_Object.Put(ctx, 'length', W_IntNumber(1), flags = allon)
-        w_Object.Put(ctx, 'prototype', w_ObjPrototype, flags = allon)
 
         global_instance.Put(ctx, 'Object', w_Object)
 
