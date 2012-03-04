@@ -180,17 +180,17 @@ class W_PrimitiveObject(W_Root):
         except ReturnException, e:
             return e.value
 
-    def Get(self, ctx, propertyName):
+    def Get(self, ctx, property_name):
         try:
-            return self.propdict[propertyName].get_value(ctx)
+            return self.propdict[property_name].get_value(ctx)
         except KeyError:
             if self.Prototype is None:
                 return w_Undefined
-        return self.Prototype.Get(ctx, propertyName) # go down the prototype chain
+        return self.Prototype.Get(ctx, property_name) # go down the prototype chain
 
-    def CanPut(self, propertyName):
+    def CanPut(self, property_name):
         try:
-            if self.propdict[propertyName].flags & RO:
+            if self.propdict[property_name].flags & RO:
                 return False
             else:
                 return True
@@ -198,21 +198,24 @@ class W_PrimitiveObject(W_Root):
             if self.Prototype is None:
                 return True
             else:
-                return self.Prototype.CanPut(propertyName)
+                return self.Prototype.CanPut(property_name)
 
-    def Put(self, ctx, P, V, flags = 0):
-        if not self.CanPut(P): return
-        if P in self.propdict:
-            prop = self.propdict[P]
-            prop.set_value(ctx, V)
-            prop.flags |= flags
-        else:
-            self.propdict[P] = Property(P, V, flags = flags)
+    def Put(self, ctx, property_name, value, flags=0):
+        if not self.CanPut(property_name):
+            return
+        try:
+            property_instance = self.propdict[property_name]
+            property_instance.set_value(ctx, value)
+            property_instance.flags |= flags
+        except KeyError:
+            self.propdict[property_name] = Property(property_name, value, flags=flags)
 
-    def HasProperty(self, P):
-        if P in self.propdict: return True
-        if self.Prototype is None: return False
-        return self.Prototype.HasProperty(P)
+    def HasProperty(self, property_name):
+        if property_name in self.propdict:
+            return True
+        if self.Prototype is None:
+            return False
+        return self.Prototype.HasProperty(property_name)
 
     def Delete(self, P):
         if P in self.propdict:
